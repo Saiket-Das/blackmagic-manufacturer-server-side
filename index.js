@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express')
 const cors = require('cors');
 require('dotenv').config();
@@ -25,6 +25,10 @@ async function run() {
         const orderCollection = client.db('manufacturer').collection('orders');
 
 
+        /*
+        ----------------- PRODUCTS -----------------
+        */
+        // ---------------- Get all the products  ----------------
         app.get('/products', async (req, res) => {
             const query = {};
             const cursor = await productCollection.find(query).toArray();
@@ -32,6 +36,34 @@ async function run() {
         });
 
 
+        app.get('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const product = await productCollection.findOne(query);
+            res.send(product)
+        })
+
+        app.patch('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const details = req.body;
+            const updatedStock = details.stock;
+            const updateDoc = {
+                $set: {
+                    stock: updatedStock
+                }
+            }
+            const result = await productCollection.updateOne(query, updateDoc);
+            res.send(result)
+        })
+
+
+
+
+        /*
+        ----------------- ORDERS -----------------
+        */
+        // ---------------- Post single order  ----------------
         app.post('/orders', async (req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order);
