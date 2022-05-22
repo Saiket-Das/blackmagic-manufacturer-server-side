@@ -22,13 +22,22 @@ async function run() {
     try {
         await client.connect();
         const productCollection = client.db('manufacturer').collection('products');
+        const orderCollection = client.db('manufacturer').collection('orders');
 
 
         app.get('/products', async (req, res) => {
             const query = {};
             const cursor = await productCollection.find(query).toArray();
             res.send(cursor)
+        });
+
+
+        app.post('/orders', async (req, res) => {
+            const order = req.body;
+            const result = await orderCollection.insertOne(order);
+            res.send({ success: true, result });
         })
+
     }
 
     catch {
