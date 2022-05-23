@@ -23,6 +23,7 @@ async function run() {
         await client.connect();
         const productCollection = client.db('manufacturer').collection('products');
         const orderCollection = client.db('manufacturer').collection('orders');
+        const reviewCollection = client.db('manufacturer').collection('reviews');
 
 
         /*
@@ -63,10 +64,38 @@ async function run() {
         /*
         ----------------- ORDERS -----------------
         */
+        // ---------------- Get single user orders byt using email query  ----------------
+        app.get('/orders', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email }
+            const result = await orderCollection.find(query).toArray();
+            res.send(result);
+        })
+
         // ---------------- Post single order  ----------------
         app.post('/orders', async (req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order);
+            res.send({ success: true, result });
+        })
+
+
+
+
+        /*
+          ----------------- REVIEWS -----------------
+       */
+        // ---------------- Get single user orders byt using email query  ----------------
+        app.get('/reviews', async (req, res) => {
+            const review = req.body;
+            const result = await reviewCollection.find(review).toArray();
+            res.send(result);
+        })
+
+        // ---------------- Post single review  ----------------
+        app.post('/reviews', async (req, res) => {
+            const review = req.body;
+            const result = await reviewCollection.insertOne(review);
             res.send({ success: true, result });
         })
 
