@@ -66,10 +66,20 @@ async function run() {
         */
         // ---------------- Get single user orders byt using email query  ----------------
         app.get('/orders', async (req, res) => {
+
+            const query = {};
+
             const email = req.query.email;
-            const query = { email: email }
-            const result = await orderCollection.find(query).toArray();
-            res.send(result);
+            if (email) {
+                const query = { email: email }
+                const result = await orderCollection.find(query).toArray();
+                res.send(result);
+
+            }
+            else if (!email) {
+                const cursor = await orderCollection.find(query).toArray();
+                res.send(cursor);
+            }
         })
 
         // ---------------- Post single order  ----------------
@@ -80,12 +90,20 @@ async function run() {
         })
 
 
+        app.delete('/orders/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await orderCollection.deleteOne(query);
+            res.send(result);
+        })
+
+
 
 
         /*
-          ----------------- REVIEWS -----------------
+        ----------------- REVIEWS -----------------
        */
-        // ---------------- Get single user orders byt using email query  ----------------
+        // ---------------- Get single user reviews byt using email query  ----------------
         app.get('/reviews', async (req, res) => {
             const review = req.body;
             const result = await reviewCollection.find(review).toArray();
