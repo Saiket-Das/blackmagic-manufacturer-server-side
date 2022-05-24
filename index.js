@@ -1,7 +1,17 @@
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+
 const express = require('express')
 const cors = require('cors');
+
 const jwt = require('jsonwebtoken');
+
+var nodemailer = require('nodemailer');
+var sgTransport = require('nodemailer-sendgrid-transport');
+// const { calculateObjectSize } = require('bson');
+
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
+
 require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -13,6 +23,51 @@ app.use(express.json());
 
 
 
+// Connection with SEND GRID 
+var emailSender = {
+    auth: {
+        api_key: process.env.SEND_GRID_KEY
+    }
+}
+
+var sendEmailClient = nodemailer.createTransport(sgTransport(emailSender));
+
+
+// EMAIL SEND function 
+function orderConfrimationEmail(booking) {
+    const { email, name, productName, quantity, amount } = booking;
+
+    var sendEmail = {
+        from: process.env.EMAIL_SENDER,
+        to: email,
+        subject: `Your ${productName} order is Confirmed`,
+        text: `Your order for ${productName} is is Confirmed`,
+        html: `
+          <div>
+            <h3> Hello ${name}, </h3>
+            <h4>Your order for ${productName} is confirmed</h4>
+            <p>Your order info: ${quantity} quantity of ${productName} and the cost of your order is $${amount}.</p>
+
+            <p>Thanks for ordering.</p>
+            
+            <h3>Our Address</h3>
+            <a href="https://goo.gl/maps/eKRNKkwYWAxURH8JA">Gulshan, Dhaka - 1212</a>
+            <p>Bangladesh</p>
+            <a href="https://web.programming-hero.com/">unsubscribe</a>
+          </div>
+        `
+    };
+
+    sendEmailClient.sendMail(sendEmail, function (err, info) {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            console.log('Message sent: ', info);
+        }
+    });
+
+}
 
 
 
@@ -20,7 +75,7 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.SECRET_KEY}@clus
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 
-// Verify the JSON Web Token 
+// ----------------- Verify the JSON Web Token 
 function verifyJWT(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -50,11 +105,22 @@ async function run() {
 
 
 
+        // Verify the ADMIN 
+        async function verifyAdmin(req, res, next) {
+            const requesterEmail = req.decoded.email;
+            const requesterProfile = await userCollection.findOne({ email: requesterEmail })
+            if (requesterProfile.role === 'admin') {
+                next();
+            }
+            else {
+                res.status(403).send({ message: 'Forbidden access' });
+            }
+        }
+
 
         /*
         ----------------- USER -----------------
         */
-
         // ---------------- Get all users  ----------------
         app.get('/users', verifyJWT, async (req, res) => {
             const users = await userCollection.find().toArray();
@@ -76,6 +142,30 @@ async function run() {
         });
 
 
+        // ---------------- Get admin ----------------
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = await userCollection.findOne({ email: email });
+            const isAdmin = user.role === 'admin';
+            res.send({ admin: isAdmin })
+        })
+
+        // ---------------- Update or Add user  ----------------
+        app.put('/users/admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const updateDoc = {
+                $set: {
+                    role: 'admin'
+                }
+            };
+            const result = await userCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        });
+
+
+
+
         /*
         ----------------- PRODUCTS -----------------
         */
@@ -94,6 +184,12 @@ async function run() {
             res.send(product)
         })
 
+        app.post('/products', async (req, res) => {
+            const product = req.body;
+            const result = await productCollection.insertOne(product);
+            res.send(result)
+
+        })
         app.patch('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
@@ -108,6 +204,13 @@ async function run() {
             res.send(result)
         })
 
+
+        app.delete('/products/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const cursor = await productCollection.deleteOne(query);
+            res.send(cursor)
+        });
 
 
 
@@ -133,18 +236,28 @@ async function run() {
 
                 }
             }
-
-
             else if (!email) {
                 const cursor = await orderCollection.find(query).toArray();
                 res.send(cursor);
             }
         })
 
+
+
+        // Get Specific Order Details BY ID 
+        app.get('/orders/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const orderId = { _id: ObjectId(id) };
+            const cursor = await orderCollection.findOne(orderId);
+            res.send(cursor)
+        })
+
+
         // ---------------- Post single order  ----------------
         app.post('/orders', async (req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order);
+            orderConfrimationEmail(order)
             res.send({ success: true, result });
         })
 
@@ -174,6 +287,24 @@ async function run() {
             const review = req.body;
             const result = await reviewCollection.insertOne(review);
             res.send({ success: true, result });
+        })
+
+
+
+        /*
+        ----------------- REVIEWS -----------------
+       */
+        // ---------------- Stripe Payment 
+        app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+            const order = req.body;
+            const price = order.amount;
+            const total = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: total,
+                currency: 'usd',
+                payment_method_type: ['card']
+            });
+            res.send({ clientSecret: paymentIntent.client_secret })
         })
 
     }
