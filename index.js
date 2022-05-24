@@ -101,6 +101,7 @@ async function run() {
         const orderCollection = client.db('manufacturer').collection('orders');
         const reviewCollection = client.db('manufacturer').collection('reviews');
         const userCollection = client.db('manufacturer').collection('users');
+        const paymentCollection = client.db('manufacturer').collection('payments');
 
 
 
@@ -187,8 +188,8 @@ async function run() {
             const product = req.body;
             const result = await productCollection.insertOne(product);
             res.send(result)
-
         })
+
         app.patch('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
@@ -258,6 +259,23 @@ async function run() {
             const result = await orderCollection.insertOne(order);
             orderConfrimationEmail(order)
             res.send({ success: true, result });
+        })
+
+
+        app.patch('/orders/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const paymentDetails = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    paid: true,
+                    payment: paymentDetails.transactionId
+                }
+            }
+            const paymentResult = await paymentCollection.insertOne(paymentDetails);
+            const result = await orderCollection.updateOne(filter, updateDoc);
+
+            res.send(result)
         })
 
 
