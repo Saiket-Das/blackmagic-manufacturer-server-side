@@ -219,9 +219,7 @@ async function run() {
         */
         // ---------------- Get single user orders byt using email query  ----------------
         app.get('/orders', verifyJWT, async (req, res) => {
-
             const query = {};
-
             const email = req.query.email;
             const decodedEmail = req.decoded.email;
 
@@ -264,19 +262,38 @@ async function run() {
 
         app.patch('/orders/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
-            const paymentDetails = req.body;
+            console.log(id)
+            const orderDetails = req.body;
             const filter = { _id: ObjectId(id) };
-            const updateDoc = {
-                $set: {
-                    paid: true,
-                    payment: paymentDetails.transactionId
-                }
+            const alreadyPaid = orderDetails.paid;
+            if (alreadyPaid) {
+                // const options = { upsert: true };
+                const updateDoc = {
+                    $set: {
+                        status: true,
+                        status: orderDetails.status
+                    }
+                };
+                const result = await orderCollection.updateOne(filter, updateDoc);
+                res.send(result);
             }
-            const paymentResult = await paymentCollection.insertOne(paymentDetails);
-            const result = await orderCollection.updateOne(filter, updateDoc);
 
-            res.send(result)
+            else {
+                // if (!alreadyPaid) {
+                const paymentDetails = req.body;
+                const updateDoc = {
+                    $set: {
+                        paid: true,
+                        payment: paymentDetails.transactionId
+                    }
+                }
+                const paymentResult = await paymentCollection.insertOne(paymentDetails);
+                const result = await orderCollection.updateOne(filter, updateDoc);
+
+                res.send(result)
+            }
         })
+
 
 
         app.delete('/orders/:id', async (req, res) => {
