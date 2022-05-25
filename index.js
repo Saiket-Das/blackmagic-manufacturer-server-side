@@ -127,6 +127,17 @@ async function run() {
             res.send(users)
         })
 
+
+        // ---------------- Update or Add user  ----------------
+        app.get('/users/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const users = await userCollection.findOne(filter);
+            res.send(users)
+
+        });
+
+
         // ---------------- Update or Add user  ----------------
         app.put('/users/:email', async (req, res) => {
             const email = req.params.email;
@@ -151,10 +162,10 @@ async function run() {
 
             const updateDoc = {
                 $set: {
-                    name: user.displayName,
+                    name: user.name,
                     email: user.email,
                     phone: user.phone,
-                    job: user.job,
+                    photo: user.photo,
                     education: user.education,
                     degree: user.degree,
                     institution: user.institution,
@@ -163,7 +174,7 @@ async function run() {
                     address: user.address,
                     facebookLink: user.facebook,
                     instagram: user.instagram,
-                    skill: user.instagram,
+                    skill: user.skill,
                 }
             };
             const result = await userCollection.updateOne(filter, updateDoc);
