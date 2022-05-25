@@ -139,7 +139,37 @@ async function run() {
             const result = await userCollection.updateOne(filter, updateDoc, options);
             const token = jwt.sign({ email: email }, process.env.JWT_TOKEN, { expiresIn: '1d' })
             res.send({ result, token });
+
         });
+
+
+        app.patch('/users/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const user = req.body;
+            console.log(user.email)
+            const filter = { email: email };
+
+            const updateDoc = {
+                $set: {
+                    name: user.displayName,
+                    email: user.email,
+                    phone: user.phone,
+                    job: user.job,
+                    education: user.education,
+                    degree: user.degree,
+                    institution: user.institution,
+                    batch: user.batch,
+                    city: user.city,
+                    address: user.address,
+                    facebookLink: user.facebook,
+                    instagram: user.instagram,
+                    skill: user.instagram,
+                }
+            };
+            const result = await userCollection.updateOne(filter, updateDoc);
+            res.send(result)
+
+        })
 
 
         // ---------------- Get admin ----------------
@@ -267,7 +297,6 @@ async function run() {
             const filter = { _id: ObjectId(id) };
             const alreadyPaid = orderDetails.paid;
             if (alreadyPaid) {
-                // const options = { upsert: true };
                 const updateDoc = {
                     $set: {
                         status: true,
@@ -279,7 +308,6 @@ async function run() {
             }
 
             else {
-                // if (!alreadyPaid) {
                 const paymentDetails = req.body;
                 const updateDoc = {
                     $set: {
