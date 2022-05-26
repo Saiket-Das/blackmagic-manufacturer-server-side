@@ -157,7 +157,6 @@ async function run() {
         app.patch('/users/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             const user = req.body;
-            console.log(user.email)
             const filter = { email: email };
 
             const updateDoc = {
@@ -210,10 +209,9 @@ async function run() {
         /*
         ----------------- PRODUCTS -----------------
         */
-        // ---------------- Get all the products  ----------------
+        // ---------------- Get all the products ----------------
         app.get('/products', async (req, res) => {
-            const query = {};
-            const cursor = await productCollection.find(query).toArray();
+            const cursor = await productCollection.find().toArray();
             res.send(cursor)
         });
 
@@ -303,7 +301,6 @@ async function run() {
 
         app.patch('/orders/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
-            console.log(id)
             const orderDetails = req.body;
             const filter = { _id: ObjectId(id) };
             const alreadyPaid = orderDetails.paid;
